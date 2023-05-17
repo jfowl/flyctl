@@ -54,6 +54,11 @@ query GetOrganization($slug: String!) {
 		name
 		slug
 		addOnSsoLink
+		apps {
+			nodes {
+				...AppData
+			}
+		}
 	}
 }
 
@@ -113,6 +118,7 @@ mutation CreateLimitedAccessToken($name: String!, $organizationId: ID!, $profile
 	createLimitedAccessToken(input: {name: $name, organizationId: $organizationId, profile: $profile, profileParams: $profileParams, expiry: $expiry}) {
 		limitedAccessToken {
 			tokenHeader
+			token
 		}
 	}
 }

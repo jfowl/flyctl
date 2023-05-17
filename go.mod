@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.5
 	github.com/BurntSushi/toml v1.2.1
-	github.com/Khan/genqlient v0.5.0
+	github.com/Khan/genqlient v0.6.0
 	github.com/alecthomas/chroma v0.10.0
 	github.com/avast/retry-go/v4 v4.2.0
 	github.com/azazeal/pause v1.0.6
@@ -51,16 +51,16 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.8.1
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.2
 	github.com/superfly/flyctl/api v0.0.0-20220708073423-b6d7c3cf5161
 	github.com/superfly/graphql v0.2.3
 	github.com/vektah/gqlparser v1.3.1
-	github.com/vektah/gqlparser/v2 v2.4.8
+	github.com/vektah/gqlparser/v2 v2.5.1
 	golang.org/x/crypto v0.6.0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
-	golang.org/x/net v0.7.0
+	golang.org/x/net v0.9.0
 	golang.org/x/sync v0.1.0
-	golang.org/x/term v0.5.0
+	golang.org/x/term v0.7.0
 	golang.zx2c4.com/wireguard v0.0.0-20230325221338-052af4a8072b
 	google.golang.org/grpc v1.51.0-dev
 	gopkg.in/yaml.v2 v2.4.0
@@ -76,7 +76,7 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
-	golang.org/x/tools v0.2.0 // indirect
+	golang.org/x/tools v0.8.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gvisor.dev/gvisor v0.0.0-20221203005347-703fd9b7fbc0 // indirect
@@ -132,7 +132,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.10 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/ioprogress v0.0.0-20180201004757-6a23b12fa88e // indirect
-	github.com/mitchellh/mapstructure v1.4.1 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/sys/mount v0.2.0 // indirect
 	github.com/moby/sys/mountinfo v0.5.0 // indirect
 	github.com/nats-io/nats-server/v2 v2.7.4 // indirect
@@ -167,9 +167,9 @@ require (
 	go.opentelemetry.io/otel/sdk v1.0.0-RC1 // indirect
 	go.opentelemetry.io/otel/trace v1.0.0-RC1 // indirect
 	go.opentelemetry.io/proto/otlp v0.9.0 // indirect
-	golang.org/x/mod v0.6.0 // indirect
-	golang.org/x/sys v0.5.1-0.20230222185716-a3b23cc77e89
-	golang.org/x/text v0.7.0
+	golang.org/x/mod v0.10.0 // indirect
+	golang.org/x/sys v0.8.0
+	golang.org/x/text v0.9.0
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af
 	google.golang.org/genproto v0.0.0-20210722135532-667f2b7c528f // indirect
 	google.golang.org/protobuf v1.28.1 // indirect

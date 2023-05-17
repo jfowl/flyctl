@@ -713,11 +713,17 @@ func (v *CreateLimitedAccessTokenCreateLimitedAccessTokenCreateLimitedAccessToke
 // CreateLimitedAccessTokenCreateLimitedAccessTokenCreateLimitedAccessTokenPayloadLimitedAccessToken includes the requested fields of the GraphQL type LimitedAccessToken.
 type CreateLimitedAccessTokenCreateLimitedAccessTokenCreateLimitedAccessTokenPayloadLimitedAccessToken struct {
 	TokenHeader string `json:"tokenHeader"`
+	Token       string `json:"token"`
 }
 
 // GetTokenHeader returns CreateLimitedAccessTokenCreateLimitedAccessTokenCreateLimitedAccessTokenPayloadLimitedAccessToken.TokenHeader, and is useful for accessing the field via an interface.
 func (v *CreateLimitedAccessTokenCreateLimitedAccessTokenCreateLimitedAccessTokenPayloadLimitedAccessToken) GetTokenHeader() string {
 	return v.TokenHeader
+}
+
+// GetToken returns CreateLimitedAccessTokenCreateLimitedAccessTokenCreateLimitedAccessTokenPayloadLimitedAccessToken.Token, and is useful for accessing the field via an interface.
+func (v *CreateLimitedAccessTokenCreateLimitedAccessTokenCreateLimitedAccessTokenPayloadLimitedAccessToken) GetToken() string {
+	return v.Token
 }
 
 // CreateLimitedAccessTokenResponse is returned by CreateLimitedAccessToken on success.
@@ -1281,7 +1287,8 @@ type GetOrganizationOrganization struct {
 	// Unique organization slug
 	Slug string `json:"slug"`
 	// Single sign-on link for the given integration type
-	AddOnSsoLink string `json:"addOnSsoLink"`
+	AddOnSsoLink string                                       `json:"addOnSsoLink"`
+	Apps         GetOrganizationOrganizationAppsAppConnection `json:"apps"`
 }
 
 // GetId returns GetOrganizationOrganization.Id, and is useful for accessing the field via an interface.
@@ -1295,6 +1302,101 @@ func (v *GetOrganizationOrganization) GetSlug() string { return v.Slug }
 
 // GetAddOnSsoLink returns GetOrganizationOrganization.AddOnSsoLink, and is useful for accessing the field via an interface.
 func (v *GetOrganizationOrganization) GetAddOnSsoLink() string { return v.AddOnSsoLink }
+
+// GetApps returns GetOrganizationOrganization.Apps, and is useful for accessing the field via an interface.
+func (v *GetOrganizationOrganization) GetApps() GetOrganizationOrganizationAppsAppConnection {
+	return v.Apps
+}
+
+// GetOrganizationOrganizationAppsAppConnection includes the requested fields of the GraphQL type AppConnection.
+// The GraphQL type's documentation follows.
+//
+// The connection type for App.
+type GetOrganizationOrganizationAppsAppConnection struct {
+	// A list of nodes.
+	Nodes []GetOrganizationOrganizationAppsAppConnectionNodesApp `json:"nodes"`
+}
+
+// GetNodes returns GetOrganizationOrganizationAppsAppConnection.Nodes, and is useful for accessing the field via an interface.
+func (v *GetOrganizationOrganizationAppsAppConnection) GetNodes() []GetOrganizationOrganizationAppsAppConnectionNodesApp {
+	return v.Nodes
+}
+
+// GetOrganizationOrganizationAppsAppConnectionNodesApp includes the requested fields of the GraphQL type App.
+type GetOrganizationOrganizationAppsAppConnectionNodesApp struct {
+	AppData `json:"-"`
+}
+
+// GetId returns GetOrganizationOrganizationAppsAppConnectionNodesApp.Id, and is useful for accessing the field via an interface.
+func (v *GetOrganizationOrganizationAppsAppConnectionNodesApp) GetId() string { return v.AppData.Id }
+
+// GetName returns GetOrganizationOrganizationAppsAppConnectionNodesApp.Name, and is useful for accessing the field via an interface.
+func (v *GetOrganizationOrganizationAppsAppConnectionNodesApp) GetName() string {
+	return v.AppData.Name
+}
+
+// GetPlatformVersion returns GetOrganizationOrganizationAppsAppConnectionNodesApp.PlatformVersion, and is useful for accessing the field via an interface.
+func (v *GetOrganizationOrganizationAppsAppConnectionNodesApp) GetPlatformVersion() PlatformVersionEnum {
+	return v.AppData.PlatformVersion
+}
+
+// GetOrganization returns GetOrganizationOrganizationAppsAppConnectionNodesApp.Organization, and is useful for accessing the field via an interface.
+func (v *GetOrganizationOrganizationAppsAppConnectionNodesApp) GetOrganization() AppDataOrganization {
+	return v.AppData.Organization
+}
+
+func (v *GetOrganizationOrganizationAppsAppConnectionNodesApp) UnmarshalJSON(b []byte) error {
+
+	if string(b) == "null" {
+		return nil
+	}
+
+	var firstPass struct {
+		*GetOrganizationOrganizationAppsAppConnectionNodesApp
+		graphql.NoUnmarshalJSON
+	}
+	firstPass.GetOrganizationOrganizationAppsAppConnectionNodesApp = v
+
+	err := json.Unmarshal(b, &firstPass)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(
+		b, &v.AppData)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type __premarshalGetOrganizationOrganizationAppsAppConnectionNodesApp struct {
+	Id string `json:"id"`
+
+	Name string `json:"name"`
+
+	PlatformVersion PlatformVersionEnum `json:"platformVersion"`
+
+	Organization AppDataOrganization `json:"organization"`
+}
+
+func (v *GetOrganizationOrganizationAppsAppConnectionNodesApp) MarshalJSON() ([]byte, error) {
+	premarshaled, err := v.__premarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(premarshaled)
+}
+
+func (v *GetOrganizationOrganizationAppsAppConnectionNodesApp) __premarshalJSON() (*__premarshalGetOrganizationOrganizationAppsAppConnectionNodesApp, error) {
+	var retval __premarshalGetOrganizationOrganizationAppsAppConnectionNodesApp
+
+	retval.Id = v.AppData.Id
+	retval.Name = v.AppData.Name
+	retval.PlatformVersion = v.AppData.PlatformVersion
+	retval.Organization = v.AppData.Organization
+	return &retval, nil
+}
 
 // GetOrganizationResponse is returned by GetOrganization on success.
 type GetOrganizationResponse struct {
@@ -2413,14 +2515,8 @@ func (v *__UpdateAddOnInput) GetReadRegions() []string { return v.ReadRegions }
 // GetOptions returns __UpdateAddOnInput.Options, and is useful for accessing the field via an interface.
 func (v *__UpdateAddOnInput) GetOptions() interface{} { return v.Options }
 
-func AgentGetInstances(
-	ctx context.Context,
-	client graphql.Client,
-	appName string,
-) (*AgentGetInstancesResponse, error) {
-	req := &graphql.Request{
-		OpName: "AgentGetInstances",
-		Query: `
+// The query or mutation executed by AgentGetInstances.
+const AgentGetInstances_Operation = `
 query AgentGetInstances ($appName: String!) {
 	app(name: $appName) {
 		organization {
@@ -2449,7 +2545,16 @@ query AgentGetInstances ($appName: String!) {
 		}
 	}
 }
-`,
+`
+
+func AgentGetInstances(
+	ctx context.Context,
+	client graphql.Client,
+	appName string,
+) (*AgentGetInstancesResponse, error) {
+	req := &graphql.Request{
+		OpName: "AgentGetInstances",
+		Query:  AgentGetInstances_Operation,
 		Variables: &__AgentGetInstancesInput{
 			AppName: appName,
 		},
@@ -2468,14 +2573,8 @@ query AgentGetInstances ($appName: String!) {
 	return &data, err
 }
 
-func CreateAddOn(
-	ctx context.Context,
-	client graphql.Client,
-	input CreateAddOnInput,
-) (*CreateAddOnResponse, error) {
-	req := &graphql.Request{
-		OpName: "CreateAddOn",
-		Query: `
+// The query or mutation executed by CreateAddOn.
+const CreateAddOn_Operation = `
 mutation CreateAddOn ($input: CreateAddOnInput!) {
 	createAddOn(input: $input) {
 		addOn {
@@ -2486,7 +2585,16 @@ mutation CreateAddOn ($input: CreateAddOnInput!) {
 		}
 	}
 }
-`,
+`
+
+func CreateAddOn(
+	ctx context.Context,
+	client graphql.Client,
+	input CreateAddOnInput,
+) (*CreateAddOnResponse, error) {
+	req := &graphql.Request{
+		OpName: "CreateAddOn",
+		Query:  CreateAddOn_Operation,
 		Variables: &__CreateAddOnInput{
 			Input: input,
 		},
@@ -2505,14 +2613,8 @@ mutation CreateAddOn ($input: CreateAddOnInput!) {
 	return &data, err
 }
 
-func CreateApp(
-	ctx context.Context,
-	client graphql.Client,
-	input CreateAppInput,
-) (*CreateAppResponse, error) {
-	req := &graphql.Request{
-		OpName: "CreateApp",
-		Query: `
+// The query or mutation executed by CreateApp.
+const CreateApp_Operation = `
 mutation CreateApp ($input: CreateAppInput!) {
 	createApp(input: $input) {
 		app {
@@ -2538,7 +2640,16 @@ fragment AppData on App {
 		paidPlan
 	}
 }
-`,
+`
+
+func CreateApp(
+	ctx context.Context,
+	client graphql.Client,
+	input CreateAppInput,
+) (*CreateAppResponse, error) {
+	req := &graphql.Request{
+		OpName: "CreateApp",
+		Query:  CreateApp_Operation,
 		Variables: &__CreateAppInput{
 			Input: input,
 		},
@@ -2557,6 +2668,18 @@ fragment AppData on App {
 	return &data, err
 }
 
+// The query or mutation executed by CreateLimitedAccessToken.
+const CreateLimitedAccessToken_Operation = `
+mutation CreateLimitedAccessToken ($name: String!, $organizationId: ID!, $profile: String!, $profileParams: JSON, $expiry: String!) {
+	createLimitedAccessToken(input: {name:$name,organizationId:$organizationId,profile:$profile,profileParams:$profileParams,expiry:$expiry}) {
+		limitedAccessToken {
+			tokenHeader
+			token
+		}
+	}
+}
+`
+
 func CreateLimitedAccessToken(
 	ctx context.Context,
 	client graphql.Client,
@@ -2568,15 +2691,7 @@ func CreateLimitedAccessToken(
 ) (*CreateLimitedAccessTokenResponse, error) {
 	req := &graphql.Request{
 		OpName: "CreateLimitedAccessToken",
-		Query: `
-mutation CreateLimitedAccessToken ($name: String!, $organizationId: ID!, $profile: String!, $profileParams: JSON, $expiry: String!) {
-	createLimitedAccessToken(input: {name:$name,organizationId:$organizationId,profile:$profile,profileParams:$profileParams,expiry:$expiry}) {
-		limitedAccessToken {
-			tokenHeader
-		}
-	}
-}
-`,
+		Query:  CreateLimitedAccessToken_Operation,
 		Variables: &__CreateLimitedAccessTokenInput{
 			Name:           name,
 			OrganizationId: organizationId,
@@ -2599,6 +2714,15 @@ mutation CreateLimitedAccessToken ($name: String!, $organizationId: ID!, $profil
 	return &data, err
 }
 
+// The query or mutation executed by DeleteAddOn.
+const DeleteAddOn_Operation = `
+mutation DeleteAddOn ($name: String) {
+	deleteAddOn(input: {name:$name}) {
+		deletedAddOnName
+	}
+}
+`
+
 func DeleteAddOn(
 	ctx context.Context,
 	client graphql.Client,
@@ -2606,13 +2730,7 @@ func DeleteAddOn(
 ) (*DeleteAddOnResponse, error) {
 	req := &graphql.Request{
 		OpName: "DeleteAddOn",
-		Query: `
-mutation DeleteAddOn ($name: String) {
-	deleteAddOn(input: {name:$name}) {
-		deletedAddOnName
-	}
-}
-`,
+		Query:  DeleteAddOn_Operation,
 		Variables: &__DeleteAddOnInput{
 			Name: name,
 		},
@@ -2631,14 +2749,8 @@ mutation DeleteAddOn ($name: String) {
 	return &data, err
 }
 
-func FlyctlConfigCurrentRelease(
-	ctx context.Context,
-	client graphql.Client,
-	appName string,
-) (*FlyctlConfigCurrentReleaseResponse, error) {
-	req := &graphql.Request{
-		OpName: "FlyctlConfigCurrentRelease",
-		Query: `
+// The query or mutation executed by FlyctlConfigCurrentRelease.
+const FlyctlConfigCurrentRelease_Operation = `
 query FlyctlConfigCurrentRelease ($appName: String!) {
 	app(name: $appName) {
 		currentReleaseUnprocessed {
@@ -2646,7 +2758,16 @@ query FlyctlConfigCurrentRelease ($appName: String!) {
 		}
 	}
 }
-`,
+`
+
+func FlyctlConfigCurrentRelease(
+	ctx context.Context,
+	client graphql.Client,
+	appName string,
+) (*FlyctlConfigCurrentReleaseResponse, error) {
+	req := &graphql.Request{
+		OpName: "FlyctlConfigCurrentRelease",
+		Query:  FlyctlConfigCurrentRelease_Operation,
 		Variables: &__FlyctlConfigCurrentReleaseInput{
 			AppName: appName,
 		},
@@ -2665,14 +2786,8 @@ query FlyctlConfigCurrentRelease ($appName: String!) {
 	return &data, err
 }
 
-func FlyctlDeployGetLatestImage(
-	ctx context.Context,
-	client graphql.Client,
-	appName string,
-) (*FlyctlDeployGetLatestImageResponse, error) {
-	req := &graphql.Request{
-		OpName: "FlyctlDeployGetLatestImage",
-		Query: `
+// The query or mutation executed by FlyctlDeployGetLatestImage.
+const FlyctlDeployGetLatestImage_Operation = `
 query FlyctlDeployGetLatestImage ($appName: String!) {
 	app(name: $appName) {
 		currentReleaseUnprocessed {
@@ -2682,7 +2797,16 @@ query FlyctlDeployGetLatestImage ($appName: String!) {
 		}
 	}
 }
-`,
+`
+
+func FlyctlDeployGetLatestImage(
+	ctx context.Context,
+	client graphql.Client,
+	appName string,
+) (*FlyctlDeployGetLatestImageResponse, error) {
+	req := &graphql.Request{
+		OpName: "FlyctlDeployGetLatestImage",
+		Query:  FlyctlDeployGetLatestImage_Operation,
 		Variables: &__FlyctlDeployGetLatestImageInput{
 			AppName: appName,
 		},
@@ -2701,14 +2825,8 @@ query FlyctlDeployGetLatestImage ($appName: String!) {
 	return &data, err
 }
 
-func GetAddOn(
-	ctx context.Context,
-	client graphql.Client,
-	name string,
-) (*GetAddOnResponse, error) {
-	req := &graphql.Request{
-		OpName: "GetAddOn",
-		Query: `
+// The query or mutation executed by GetAddOn.
+const GetAddOn_Operation = `
 query GetAddOn ($name: String) {
 	addOn(name: $name) {
 		id
@@ -2732,7 +2850,16 @@ query GetAddOn ($name: String) {
 		}
 	}
 }
-`,
+`
+
+func GetAddOn(
+	ctx context.Context,
+	client graphql.Client,
+	name string,
+) (*GetAddOnResponse, error) {
+	req := &graphql.Request{
+		OpName: "GetAddOn",
+		Query:  GetAddOn_Operation,
 		Variables: &__GetAddOnInput{
 			Name: name,
 		},
@@ -2751,14 +2878,8 @@ query GetAddOn ($name: String) {
 	return &data, err
 }
 
-func GetAddOnProvider(
-	ctx context.Context,
-	client graphql.Client,
-	name string,
-) (*GetAddOnProviderResponse, error) {
-	req := &graphql.Request{
-		OpName: "GetAddOnProvider",
-		Query: `
+// The query or mutation executed by GetAddOnProvider.
+const GetAddOnProvider_Operation = `
 query GetAddOnProvider ($name: String!) {
 	addOnProvider(name: $name) {
 		id
@@ -2768,7 +2889,16 @@ query GetAddOnProvider ($name: String!) {
 		}
 	}
 }
-`,
+`
+
+func GetAddOnProvider(
+	ctx context.Context,
+	client graphql.Client,
+	name string,
+) (*GetAddOnProviderResponse, error) {
+	req := &graphql.Request{
+		OpName: "GetAddOnProvider",
+		Query:  GetAddOnProvider_Operation,
 		Variables: &__GetAddOnProviderInput{
 			Name: name,
 		},
@@ -2787,14 +2917,8 @@ query GetAddOnProvider ($name: String!) {
 	return &data, err
 }
 
-func GetApp(
-	ctx context.Context,
-	client graphql.Client,
-	name string,
-) (*GetAppResponse, error) {
-	req := &graphql.Request{
-		OpName: "GetApp",
-		Query: `
+// The query or mutation executed by GetApp.
+const GetApp_Operation = `
 query GetApp ($name: String!) {
 	app(name: $name) {
 		... AppData
@@ -2811,7 +2935,16 @@ fragment AppData on App {
 		paidPlan
 	}
 }
-`,
+`
+
+func GetApp(
+	ctx context.Context,
+	client graphql.Client,
+	name string,
+) (*GetAppResponse, error) {
+	req := &graphql.Request{
+		OpName: "GetApp",
+		Query:  GetApp_Operation,
 		Variables: &__GetAppInput{
 			Name: name,
 		},
@@ -2830,15 +2963,8 @@ fragment AppData on App {
 	return &data, err
 }
 
-func GetAppsByRole(
-	ctx context.Context,
-	client graphql.Client,
-	role string,
-	organizationId string,
-) (*GetAppsByRoleResponse, error) {
-	req := &graphql.Request{
-		OpName: "GetAppsByRole",
-		Query: `
+// The query or mutation executed by GetAppsByRole.
+const GetAppsByRole_Operation = `
 query GetAppsByRole ($role: String!, $organizationId: ID!) {
 	apps(role: $role, organizationId: $organizationId) {
 		nodes {
@@ -2857,7 +2983,17 @@ fragment AppData on App {
 		paidPlan
 	}
 }
-`,
+`
+
+func GetAppsByRole(
+	ctx context.Context,
+	client graphql.Client,
+	role string,
+	organizationId string,
+) (*GetAppsByRoleResponse, error) {
+	req := &graphql.Request{
+		OpName: "GetAppsByRole",
+		Query:  GetAppsByRole_Operation,
 		Variables: &__GetAppsByRoleInput{
 			Role:           role,
 			OrganizationId: organizationId,
@@ -2877,13 +3013,8 @@ fragment AppData on App {
 	return &data, err
 }
 
-func GetNearestRegion(
-	ctx context.Context,
-	client graphql.Client,
-) (*GetNearestRegionResponse, error) {
-	req := &graphql.Request{
-		OpName: "GetNearestRegion",
-		Query: `
+// The query or mutation executed by GetNearestRegion.
+const GetNearestRegion_Operation = `
 query GetNearestRegion {
 	nearestRegion {
 		code
@@ -2891,7 +3022,15 @@ query GetNearestRegion {
 		gatewayAvailable
 	}
 }
-`,
+`
+
+func GetNearestRegion(
+	ctx context.Context,
+	client graphql.Client,
+) (*GetNearestRegionResponse, error) {
+	req := &graphql.Request{
+		OpName: "GetNearestRegion",
+		Query:  GetNearestRegion_Operation,
 	}
 	var err error
 
@@ -2907,6 +3046,34 @@ query GetNearestRegion {
 	return &data, err
 }
 
+// The query or mutation executed by GetOrganization.
+const GetOrganization_Operation = `
+query GetOrganization ($slug: String!) {
+	organization(slug: $slug) {
+		id
+		name
+		slug
+		addOnSsoLink
+		apps {
+			nodes {
+				... AppData
+			}
+		}
+	}
+}
+fragment AppData on App {
+	id
+	name
+	platformVersion
+	organization {
+		id
+		slug
+		rawSlug
+		paidPlan
+	}
+}
+`
+
 func GetOrganization(
 	ctx context.Context,
 	client graphql.Client,
@@ -2914,16 +3081,7 @@ func GetOrganization(
 ) (*GetOrganizationResponse, error) {
 	req := &graphql.Request{
 		OpName: "GetOrganization",
-		Query: `
-query GetOrganization ($slug: String!) {
-	organization(slug: $slug) {
-		id
-		name
-		slug
-		addOnSsoLink
-	}
-}
-`,
+		Query:  GetOrganization_Operation,
 		Variables: &__GetOrganizationInput{
 			Slug: slug,
 		},
@@ -2942,13 +3100,8 @@ query GetOrganization ($slug: String!) {
 	return &data, err
 }
 
-func ListAddOnPlans(
-	ctx context.Context,
-	client graphql.Client,
-) (*ListAddOnPlansResponse, error) {
-	req := &graphql.Request{
-		OpName: "ListAddOnPlans",
-		Query: `
+// The query or mutation executed by ListAddOnPlans.
+const ListAddOnPlans_Operation = `
 query ListAddOnPlans {
 	addOnPlans {
 		nodes {
@@ -2959,7 +3112,15 @@ query ListAddOnPlans {
 		}
 	}
 }
-`,
+`
+
+func ListAddOnPlans(
+	ctx context.Context,
+	client graphql.Client,
+) (*ListAddOnPlansResponse, error) {
+	req := &graphql.Request{
+		OpName: "ListAddOnPlans",
+		Query:  ListAddOnPlans_Operation,
 	}
 	var err error
 
@@ -2975,14 +3136,8 @@ query ListAddOnPlans {
 	return &data, err
 }
 
-func ListAddOns(
-	ctx context.Context,
-	client graphql.Client,
-	addOnType AddOnType,
-) (*ListAddOnsResponse, error) {
-	req := &graphql.Request{
-		OpName: "ListAddOns",
-		Query: `
+// The query or mutation executed by ListAddOns.
+const ListAddOns_Operation = `
 query ListAddOns ($addOnType: AddOnType) {
 	addOns(type: $addOnType) {
 		nodes {
@@ -3002,7 +3157,16 @@ query ListAddOns ($addOnType: AddOnType) {
 		}
 	}
 }
-`,
+`
+
+func ListAddOns(
+	ctx context.Context,
+	client graphql.Client,
+	addOnType AddOnType,
+) (*ListAddOnsResponse, error) {
+	req := &graphql.Request{
+		OpName: "ListAddOns",
+		Query:  ListAddOns_Operation,
 		Variables: &__ListAddOnsInput{
 			AddOnType: addOnType,
 		},
@@ -3021,6 +3185,16 @@ query ListAddOns ($addOnType: AddOnType) {
 	return &data, err
 }
 
+// The query or mutation executed by LockApp.
+const LockApp_Operation = `
+mutation LockApp ($input: LockAppInput!) {
+	lockApp(input: $input) {
+		lockId
+		expiration
+	}
+}
+`
+
 func LockApp(
 	ctx context.Context,
 	client graphql.Client,
@@ -3028,14 +3202,7 @@ func LockApp(
 ) (*LockAppResponse, error) {
 	req := &graphql.Request{
 		OpName: "LockApp",
-		Query: `
-mutation LockApp ($input: LockAppInput!) {
-	lockApp(input: $input) {
-		lockId
-		expiration
-	}
-}
-`,
+		Query:  LockApp_Operation,
 		Variables: &__LockAppInput{
 			Input: input,
 		},
@@ -3054,14 +3221,8 @@ mutation LockApp ($input: LockAppInput!) {
 	return &data, err
 }
 
-func MachinesCreateRelease(
-	ctx context.Context,
-	client graphql.Client,
-	input CreateReleaseInput,
-) (*MachinesCreateReleaseResponse, error) {
-	req := &graphql.Request{
-		OpName: "MachinesCreateRelease",
-		Query: `
+// The query or mutation executed by MachinesCreateRelease.
+const MachinesCreateRelease_Operation = `
 mutation MachinesCreateRelease ($input: CreateReleaseInput!) {
 	createRelease(input: $input) {
 		release {
@@ -3070,7 +3231,16 @@ mutation MachinesCreateRelease ($input: CreateReleaseInput!) {
 		}
 	}
 }
-`,
+`
+
+func MachinesCreateRelease(
+	ctx context.Context,
+	client graphql.Client,
+	input CreateReleaseInput,
+) (*MachinesCreateReleaseResponse, error) {
+	req := &graphql.Request{
+		OpName: "MachinesCreateRelease",
+		Query:  MachinesCreateRelease_Operation,
 		Variables: &__MachinesCreateReleaseInput{
 			Input: input,
 		},
@@ -3089,14 +3259,8 @@ mutation MachinesCreateRelease ($input: CreateReleaseInput!) {
 	return &data, err
 }
 
-func MachinesUpdateRelease(
-	ctx context.Context,
-	client graphql.Client,
-	input UpdateReleaseInput,
-) (*MachinesUpdateReleaseResponse, error) {
-	req := &graphql.Request{
-		OpName: "MachinesUpdateRelease",
-		Query: `
+// The query or mutation executed by MachinesUpdateRelease.
+const MachinesUpdateRelease_Operation = `
 mutation MachinesUpdateRelease ($input: UpdateReleaseInput!) {
 	updateRelease(input: $input) {
 		release {
@@ -3104,7 +3268,16 @@ mutation MachinesUpdateRelease ($input: UpdateReleaseInput!) {
 		}
 	}
 }
-`,
+`
+
+func MachinesUpdateRelease(
+	ctx context.Context,
+	client graphql.Client,
+	input UpdateReleaseInput,
+) (*MachinesUpdateReleaseResponse, error) {
+	req := &graphql.Request{
+		OpName: "MachinesUpdateRelease",
+		Query:  MachinesUpdateRelease_Operation,
 		Variables: &__MachinesUpdateReleaseInput{
 			Input: input,
 		},
@@ -3123,14 +3296,8 @@ mutation MachinesUpdateRelease ($input: UpdateReleaseInput!) {
 	return &data, err
 }
 
-func MigrateMachinesCreateRelease(
-	ctx context.Context,
-	client graphql.Client,
-	input CreateReleaseInput,
-) (*MigrateMachinesCreateReleaseResponse, error) {
-	req := &graphql.Request{
-		OpName: "MigrateMachinesCreateRelease",
-		Query: `
+// The query or mutation executed by MigrateMachinesCreateRelease.
+const MigrateMachinesCreateRelease_Operation = `
 mutation MigrateMachinesCreateRelease ($input: CreateReleaseInput!) {
 	createRelease(input: $input) {
 		release {
@@ -3139,7 +3306,16 @@ mutation MigrateMachinesCreateRelease ($input: CreateReleaseInput!) {
 		}
 	}
 }
-`,
+`
+
+func MigrateMachinesCreateRelease(
+	ctx context.Context,
+	client graphql.Client,
+	input CreateReleaseInput,
+) (*MigrateMachinesCreateReleaseResponse, error) {
+	req := &graphql.Request{
+		OpName: "MigrateMachinesCreateRelease",
+		Query:  MigrateMachinesCreateRelease_Operation,
 		Variables: &__MigrateMachinesCreateReleaseInput{
 			Input: input,
 		},
@@ -3158,14 +3334,8 @@ mutation MigrateMachinesCreateRelease ($input: CreateReleaseInput!) {
 	return &data, err
 }
 
-func ResetAddOnPassword(
-	ctx context.Context,
-	client graphql.Client,
-	name string,
-) (*ResetAddOnPasswordResponse, error) {
-	req := &graphql.Request{
-		OpName: "ResetAddOnPassword",
-		Query: `
+// The query or mutation executed by ResetAddOnPassword.
+const ResetAddOnPassword_Operation = `
 mutation ResetAddOnPassword ($name: String!) {
 	resetAddOnPassword(input: {name:$name}) {
 		addOn {
@@ -3173,7 +3343,16 @@ mutation ResetAddOnPassword ($name: String!) {
 		}
 	}
 }
-`,
+`
+
+func ResetAddOnPassword(
+	ctx context.Context,
+	client graphql.Client,
+	name string,
+) (*ResetAddOnPasswordResponse, error) {
+	req := &graphql.Request{
+		OpName: "ResetAddOnPassword",
+		Query:  ResetAddOnPassword_Operation,
 		Variables: &__ResetAddOnPasswordInput{
 			Name: name,
 		},
@@ -3192,6 +3371,16 @@ mutation ResetAddOnPassword ($name: String!) {
 	return &data, err
 }
 
+// The query or mutation executed by ResolverCreateBuild.
+const ResolverCreateBuild_Operation = `
+mutation ResolverCreateBuild ($input: CreateBuildInput!) {
+	createBuild(input: $input) {
+		id
+		status
+	}
+}
+`
+
 func ResolverCreateBuild(
 	ctx context.Context,
 	client graphql.Client,
@@ -3199,14 +3388,7 @@ func ResolverCreateBuild(
 ) (*ResolverCreateBuildResponse, error) {
 	req := &graphql.Request{
 		OpName: "ResolverCreateBuild",
-		Query: `
-mutation ResolverCreateBuild ($input: CreateBuildInput!) {
-	createBuild(input: $input) {
-		id
-		status
-	}
-}
-`,
+		Query:  ResolverCreateBuild_Operation,
 		Variables: &__ResolverCreateBuildInput{
 			Input: input,
 		},
@@ -3225,14 +3407,8 @@ mutation ResolverCreateBuild ($input: CreateBuildInput!) {
 	return &data, err
 }
 
-func ResolverFinishBuild(
-	ctx context.Context,
-	client graphql.Client,
-	input FinishBuildInput,
-) (*ResolverFinishBuildResponse, error) {
-	req := &graphql.Request{
-		OpName: "ResolverFinishBuild",
-		Query: `
+// The query or mutation executed by ResolverFinishBuild.
+const ResolverFinishBuild_Operation = `
 mutation ResolverFinishBuild ($input: FinishBuildInput!) {
 	finishBuild(input: $input) {
 		id
@@ -3240,7 +3416,16 @@ mutation ResolverFinishBuild ($input: FinishBuildInput!) {
 		wallclockTimeMs
 	}
 }
-`,
+`
+
+func ResolverFinishBuild(
+	ctx context.Context,
+	client graphql.Client,
+	input FinishBuildInput,
+) (*ResolverFinishBuildResponse, error) {
+	req := &graphql.Request{
+		OpName: "ResolverFinishBuild",
+		Query:  ResolverFinishBuild_Operation,
 		Variables: &__ResolverFinishBuildInput{
 			Input: input,
 		},
@@ -3259,14 +3444,8 @@ mutation ResolverFinishBuild ($input: FinishBuildInput!) {
 	return &data, err
 }
 
-func SelfServiceSetPlatformVersion(
-	ctx context.Context,
-	client graphql.Client,
-	input SetPlatformVersionInput,
-) (*SelfServiceSetPlatformVersionResponse, error) {
-	req := &graphql.Request{
-		OpName: "SelfServiceSetPlatformVersion",
-		Query: `
+// The query or mutation executed by SelfServiceSetPlatformVersion.
+const SelfServiceSetPlatformVersion_Operation = `
 mutation SelfServiceSetPlatformVersion ($input: SetPlatformVersionInput!) {
 	setPlatformVersion(input: $input) {
 		app {
@@ -3274,7 +3453,16 @@ mutation SelfServiceSetPlatformVersion ($input: SetPlatformVersionInput!) {
 		}
 	}
 }
-`,
+`
+
+func SelfServiceSetPlatformVersion(
+	ctx context.Context,
+	client graphql.Client,
+	input SetPlatformVersionInput,
+) (*SelfServiceSetPlatformVersionResponse, error) {
+	req := &graphql.Request{
+		OpName: "SelfServiceSetPlatformVersion",
+		Query:  SelfServiceSetPlatformVersion_Operation,
 		Variables: &__SelfServiceSetPlatformVersionInput{
 			Input: input,
 		},
@@ -3293,14 +3481,8 @@ mutation SelfServiceSetPlatformVersion ($input: SetPlatformVersionInput!) {
 	return &data, err
 }
 
-func SetNomadVMCount(
-	ctx context.Context,
-	client graphql.Client,
-	input SetVMCountInput,
-) (*SetNomadVMCountResponse, error) {
-	req := &graphql.Request{
-		OpName: "SetNomadVMCount",
-		Query: `
+// The query or mutation executed by SetNomadVMCount.
+const SetNomadVMCount_Operation = `
 mutation SetNomadVMCount ($input: SetVMCountInput!) {
 	setVmCount(input: $input) {
 		taskGroupCounts {
@@ -3310,7 +3492,16 @@ mutation SetNomadVMCount ($input: SetVMCountInput!) {
 		warnings
 	}
 }
-`,
+`
+
+func SetNomadVMCount(
+	ctx context.Context,
+	client graphql.Client,
+	input SetVMCountInput,
+) (*SetNomadVMCountResponse, error) {
+	req := &graphql.Request{
+		OpName: "SetNomadVMCount",
+		Query:  SetNomadVMCount_Operation,
 		Variables: &__SetNomadVMCountInput{
 			Input: input,
 		},
@@ -3329,14 +3520,8 @@ mutation SetNomadVMCount ($input: SetVMCountInput!) {
 	return &data, err
 }
 
-func SetOrgSettings(
-	ctx context.Context,
-	client graphql.Client,
-	input SetAppsv2DefaultOnInput,
-) (*SetOrgSettingsResponse, error) {
-	req := &graphql.Request{
-		OpName: "SetOrgSettings",
-		Query: `
+// The query or mutation executed by SetOrgSettings.
+const SetOrgSettings_Operation = `
 mutation SetOrgSettings ($input: SetAppsv2DefaultOnInput!) {
 	setAppsV2DefaultOn(input: $input) {
 		organization {
@@ -3344,7 +3529,16 @@ mutation SetOrgSettings ($input: SetAppsv2DefaultOnInput!) {
 		}
 	}
 }
-`,
+`
+
+func SetOrgSettings(
+	ctx context.Context,
+	client graphql.Client,
+	input SetAppsv2DefaultOnInput,
+) (*SetOrgSettingsResponse, error) {
+	req := &graphql.Request{
+		OpName: "SetOrgSettings",
+		Query:  SetOrgSettings_Operation,
 		Variables: &__SetOrgSettingsInput{
 			Input: input,
 		},
@@ -3363,14 +3557,8 @@ mutation SetOrgSettings ($input: SetAppsv2DefaultOnInput!) {
 	return &data, err
 }
 
-func SetPlatformVersion(
-	ctx context.Context,
-	client graphql.Client,
-	input SetPlatformVersionInput,
-) (*SetPlatformVersionResponse, error) {
-	req := &graphql.Request{
-		OpName: "SetPlatformVersion",
-		Query: `
+// The query or mutation executed by SetPlatformVersion.
+const SetPlatformVersion_Operation = `
 mutation SetPlatformVersion ($input: SetPlatformVersionInput!) {
 	setPlatformVersion(input: $input) {
 		app {
@@ -3378,7 +3566,16 @@ mutation SetPlatformVersion ($input: SetPlatformVersionInput!) {
 		}
 	}
 }
-`,
+`
+
+func SetPlatformVersion(
+	ctx context.Context,
+	client graphql.Client,
+	input SetPlatformVersionInput,
+) (*SetPlatformVersionResponse, error) {
+	req := &graphql.Request{
+		OpName: "SetPlatformVersion",
+		Query:  SetPlatformVersion_Operation,
 		Variables: &__SetPlatformVersionInput{
 			Input: input,
 		},
@@ -3397,14 +3594,8 @@ mutation SetPlatformVersion ($input: SetPlatformVersionInput!) {
 	return &data, err
 }
 
-func SetSecrets(
-	ctx context.Context,
-	client graphql.Client,
-	input SetSecretsInput,
-) (*SetSecretsResponse, error) {
-	req := &graphql.Request{
-		OpName: "SetSecrets",
-		Query: `
+// The query or mutation executed by SetSecrets.
+const SetSecrets_Operation = `
 mutation SetSecrets ($input: SetSecretsInput!) {
 	setSecrets(input: $input) {
 		release {
@@ -3422,7 +3613,16 @@ mutation SetSecrets ($input: SetSecretsInput!) {
 		}
 	}
 }
-`,
+`
+
+func SetSecrets(
+	ctx context.Context,
+	client graphql.Client,
+	input SetSecretsInput,
+) (*SetSecretsResponse, error) {
+	req := &graphql.Request{
+		OpName: "SetSecrets",
+		Query:  SetSecrets_Operation,
 		Variables: &__SetSecretsInput{
 			Input: input,
 		},
@@ -3441,14 +3641,8 @@ mutation SetSecrets ($input: SetSecretsInput!) {
 	return &data, err
 }
 
-func UnlockApp(
-	ctx context.Context,
-	client graphql.Client,
-	input UnlockAppInput,
-) (*UnlockAppResponse, error) {
-	req := &graphql.Request{
-		OpName: "UnlockApp",
-		Query: `
+// The query or mutation executed by UnlockApp.
+const UnlockApp_Operation = `
 mutation UnlockApp ($input: UnlockAppInput!) {
 	unlockApp(input: $input) {
 		app {
@@ -3456,7 +3650,16 @@ mutation UnlockApp ($input: UnlockAppInput!) {
 		}
 	}
 }
-`,
+`
+
+func UnlockApp(
+	ctx context.Context,
+	client graphql.Client,
+	input UnlockAppInput,
+) (*UnlockAppResponse, error) {
+	req := &graphql.Request{
+		OpName: "UnlockApp",
+		Query:  UnlockApp_Operation,
 		Variables: &__UnlockAppInput{
 			Input: input,
 		},
@@ -3475,6 +3678,17 @@ mutation UnlockApp ($input: UnlockAppInput!) {
 	return &data, err
 }
 
+// The query or mutation executed by UpdateAddOn.
+const UpdateAddOn_Operation = `
+mutation UpdateAddOn ($addOnId: ID!, $planId: ID!, $readRegions: [String!]!, $options: JSON!) {
+	updateAddOn(input: {addOnId:$addOnId,planId:$planId,readRegions:$readRegions,options:$options}) {
+		addOn {
+			id
+		}
+	}
+}
+`
+
 func UpdateAddOn(
 	ctx context.Context,
 	client graphql.Client,
@@ -3485,15 +3699,7 @@ func UpdateAddOn(
 ) (*UpdateAddOnResponse, error) {
 	req := &graphql.Request{
 		OpName: "UpdateAddOn",
-		Query: `
-mutation UpdateAddOn ($addOnId: ID!, $planId: ID!, $readRegions: [String!]!, $options: JSON!) {
-	updateAddOn(input: {addOnId:$addOnId,planId:$planId,readRegions:$readRegions,options:$options}) {
-		addOn {
-			id
-		}
-	}
-}
-`,
+		Query:  UpdateAddOn_Operation,
 		Variables: &__UpdateAddOnInput{
 			AddOnId:     addOnId,
 			PlanId:      planId,

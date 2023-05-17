@@ -2,12 +2,12 @@ package logs
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/vektah/gqlparser/gqlerror"
 
-	"github.com/superfly/flyctl/api"
 	"github.com/superfly/flyctl/gql"
 	"github.com/superfly/flyctl/iostreams"
 
@@ -36,43 +36,51 @@ func runUnship(ctx context.Context) (err error) {
 	var (
 		out    = iostreams.FromContext(ctx).Out
 		client = client.FromContext(ctx).API().GenqClient
-		io     = iostreams.FromContext(ctx)
 	)
 
 	appName := appconfig.NameFromContext(ctx)
-	appNameResponse, err := gql.GetApp(ctx, client, appName)
+	_, err = gql.GetApp(ctx, client, appName)
 
 	if err != nil {
 		return err
 	}
 
-	targetApp := appNameResponse.App.AppData
-	targetOrg := targetApp.Organization
+	getAddOnResponse, err := gql.GetAddOn(ctx, client, LoggerAddOnName(appName, "logtail"))
 
+	for err != nil {
+		if errList, ok := err.(gqlerror.List); ok {
+			for _, gqlErr := range errList {
+				fmt.Println(gqlErr)
+			}
+			input := gql.CreateAddOnInput{
+				OrganizationId: targetApp.Organization.Id,
+				Name:           addOnName,
+				AppId:          targetApp.Id,
+				Type:           gql.AddOnTypes[provider],
+			}
+
+			createAddOnResponse, err := gql.CreateAddOn(ctx, client, input)
+
+			if err != nil {
+				return "", err
+			}
+
+			token = createAddOnResponse.CreateAddOn.AddOn.Token
+
+			break
+
+		} else {
+			// return "", err
+		}
+
+		err = errors.Unwrap(err)
+	}
 	_, err = gql.DeleteAddOn(ctx, client, appName+"-log-shipper")
 
 	if err != nil {
 		return
 	}
 
-	flapsClient, machine, err := EnsureShipperMachine(ctx, targetOrg)
-
-	if err != nil {
-		return
-	}
-
-	cmd := []string{"/remove-logger.sh", targetApp.Name, "logtail"}
-
-	request := &api.MachineExecRequest{
-		Cmd: strings.Join(cmd, " "),
-	}
-
-	response, err := flapsClient.Exec(ctx, machine.ID, request)
-
-	if err != nil {
-		fmt.Fprintf(io.ErrOut, response.StdErr)
-		return err
-	}
 	fmt.Fprintf(out, "Logs for %s are no longer being shipped, but older logs are still preserved in Logtail.\n", appName)
 	return
 }
