@@ -21,8 +21,9 @@ import (
 	"github.com/superfly/flyctl/agent"
 	"github.com/superfly/flyctl/api"
 	"github.com/superfly/flyctl/client"
-	"github.com/superfly/flyctl/flyctl"
 	"github.com/superfly/flyctl/internal/buildinfo"
+	"github.com/superfly/flyctl/internal/config"
+	"github.com/superfly/flyctl/internal/httptracing"
 	"github.com/superfly/flyctl/internal/instrument"
 	"github.com/superfly/flyctl/internal/logger"
 	"github.com/superfly/flyctl/internal/metrics"
@@ -85,14 +86,14 @@ func NewWithOptions(ctx context.Context, opts NewClientOpts) (*Client, error) {
 	if opts.Logger != nil {
 		logger = opts.Logger
 	}
-	httpClient, err := api.NewHTTPClient(logger, http.DefaultTransport)
+	httpClient, err := api.NewHTTPClient(logger, httptracing.NewTransport(http.DefaultTransport))
 	if err != nil {
 		return nil, fmt.Errorf("flaps: can't setup HTTP client to %s: %w", flapsUrl.String(), err)
 	}
 	return &Client{
 		appName:    opts.AppName,
 		baseUrl:    flapsUrl,
-		authToken:  flyctl.GetAPIToken(),
+		authToken:  config.FromContext(ctx).AccessToken,
 		httpClient: httpClient,
 		userAgent:  strings.TrimSpace(fmt.Sprintf("fly-cli/%s", buildinfo.Version())),
 	}, nil
@@ -140,7 +141,7 @@ func newWithUsermodeWireguard(ctx context.Context, params wireguardConnectionPar
 		},
 	}
 
-	httpClient, err := api.NewHTTPClient(logger, transport)
+	httpClient, err := api.NewHTTPClient(logger, httptracing.NewTransport(transport))
 	if err != nil {
 		return nil, fmt.Errorf("flaps: can't setup HTTP client for %s: %w", params.orgSlug, err)
 	}
@@ -154,7 +155,7 @@ func newWithUsermodeWireguard(ctx context.Context, params wireguardConnectionPar
 	return &Client{
 		appName:    params.appName,
 		baseUrl:    flapsBaseUrl,
-		authToken:  flyctl.GetAPIToken(),
+		authToken:  config.FromContext(ctx).AccessToken,
 		httpClient: httpClient,
 		userAgent:  strings.TrimSpace(fmt.Sprintf("fly-cli/%s", buildinfo.Version())),
 	}, nil
@@ -211,8 +212,14 @@ func (f *Client) Update(ctx context.Context, builder api.LaunchMachineInput, non
 	return out, nil
 }
 
-func (f *Client) Start(ctx context.Context, machineID string) (out *api.MachineStartResponse, err error) {
+func (f *Client) Start(ctx context.Context, machineID string, nonce string) (out *api.MachineStartResponse, err error) {
 	startEndpoint := fmt.Sprintf("/%s/start", machineID)
+
+	headers := make(map[string][]string)
+	if nonce != "" {
+		headers[NonceHeader] = []string{nonce}
+	}
+
 	out = new(api.MachineStartResponse)
 
 	metrics.Started(ctx, "machine_start")
@@ -220,7 +227,7 @@ func (f *Client) Start(ctx context.Context, machineID string) (out *api.MachineS
 		metrics.Status(ctx, "machine_start", err == nil)
 	}()
 
-	if err := f.sendRequest(ctx, http.MethodPost, startEndpoint, nil, out, nil); err != nil {
+	if err := f.sendRequest(ctx, http.MethodPost, startEndpoint, nil, out, headers); err != nil {
 		return nil, fmt.Errorf("failed to start VM %s: %w", machineID, err)
 	}
 	return out, nil

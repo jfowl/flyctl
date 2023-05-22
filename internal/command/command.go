@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/blang/semver"
+	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 
 	"github.com/superfly/flyctl/api"
@@ -25,6 +27,7 @@ import (
 	"github.com/superfly/flyctl/internal/config"
 	"github.com/superfly/flyctl/internal/env"
 	"github.com/superfly/flyctl/internal/flag"
+	"github.com/superfly/flyctl/internal/httptracing"
 	"github.com/superfly/flyctl/internal/instrument"
 	"github.com/superfly/flyctl/internal/logger"
 	"github.com/superfly/flyctl/internal/metrics"
@@ -290,6 +293,8 @@ func initClient(ctx context.Context) (context.Context, error) {
 	api.SetBaseURL(cfg.APIBaseURL)
 	api.SetErrorLog(cfg.LogGQLErrors)
 	api.SetInstrumenter(instrument.ApiAdapter)
+	api.SetTransport(httptracing.NewTransport(http.DefaultTransport))
+
 	c := client.FromToken(cfg.AccessToken)
 	logger.Debug("client initialized.")
 
@@ -423,6 +428,16 @@ func promptToUpdate(ctx context.Context) (context.Context, error) {
 	fmt.Fprintln(io.ErrOut, colorize.Yellow(msg))
 
 	return ctx, nil
+}
+
+func PromptToMigrate(ctx context.Context, app *api.AppCompact) {
+	if app.PlatformVersion == "nomad" {
+		config := appconfig.ConfigFromContext(ctx)
+		if config != nil {
+			io := iostreams.FromContext(ctx)
+			fmt.Fprintf(io.ErrOut, "%s Apps v1 Platform is deprecated. We recommend migrating your app with:\nfly migrate-to-v2 -c %s", aurora.Yellow("WARN"), config.ConfigFilePath())
+		}
+	}
 }
 
 func killOldAgent(ctx context.Context) (context.Context, error) {
@@ -560,7 +575,7 @@ func appConfigFilePaths(ctx context.Context) (paths []string) {
 	return
 }
 
-var errRequireAppName = fmt.Errorf("the config for your app is missing an app name, add an app_name field to the fly.toml file or specify with the -a flag`")
+var errRequireAppName = fmt.Errorf("the config for your app is missing an app name, add an app field to the fly.toml file or specify with the -a flag`")
 
 // RequireAppName is a Preparer which makes sure the user has selected an
 // application name via command line arguments, the environment or an application

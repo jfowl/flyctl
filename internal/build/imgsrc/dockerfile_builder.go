@@ -192,7 +192,7 @@ func (*dockerfileBuilder) Run(ctx context.Context, dockerFactory *dockerClientFa
 	}
 
 	buildkitEnabled, err := buildkitEnabled(docker)
-	terminal.Debugf("buildkitEnabled", buildkitEnabled)
+	terminal.Debugf("buildkitEnabled %v", buildkitEnabled)
 	if err != nil {
 		if dockerFactory.IsRemote() {
 			metrics.SendNoData(ctx, "remote_builder_failure")
@@ -267,7 +267,7 @@ func runClassicBuild(ctx context.Context, streams *iostreams.IOStreams, docker *
 	options := types.ImageBuildOptions{
 		Tags:        []string{opts.Tag},
 		BuildArgs:   buildArgs,
-		AuthConfigs: authConfigs(),
+		AuthConfigs: authConfigs(ctx),
 		Platform:    "linux/amd64",
 		Dockerfile:  dockerfilePath,
 		Target:      opts.Target,
@@ -348,7 +348,7 @@ func runBuildKitBuild(ctx context.Context, streams *iostreams.IOStreams, docker 
 			Tags:          []string{opts.Tag},
 			BuildArgs:     buildArgs,
 			Version:       types.BuilderBuildKit,
-			AuthConfigs:   authConfigs(),
+			AuthConfigs:   authConfigs(ctx),
 			SessionID:     s.ID(),
 			RemoteContext: uploadRequestRemote,
 			BuildID:       buildID,
@@ -439,7 +439,7 @@ func pushToFly(ctx context.Context, docker *dockerclient.Client, streams *iostre
 	sendImgPushMetrics := metrics.StartTiming(ctx, "image_push/duration")
 
 	pushResp, err := docker.ImagePush(ctx, tag, types.ImagePushOptions{
-		RegistryAuth: flyRegistryAuth(),
+		RegistryAuth: flyRegistryAuth(ctx),
 	})
 	metrics.Status(ctx, "image_push", err == nil)
 

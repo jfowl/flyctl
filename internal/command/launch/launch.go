@@ -13,6 +13,7 @@ import (
 	"github.com/superfly/flyctl/client"
 	"github.com/superfly/flyctl/internal/appconfig"
 	"github.com/superfly/flyctl/internal/build/imgsrc"
+	"github.com/superfly/flyctl/internal/buildinfo"
 	"github.com/superfly/flyctl/internal/cmdutil"
 	"github.com/superfly/flyctl/internal/command"
 	"github.com/superfly/flyctl/internal/command/deploy"
@@ -22,6 +23,7 @@ import (
 	"github.com/superfly/flyctl/iostreams"
 	"github.com/superfly/flyctl/scanner"
 	"github.com/superfly/graphql"
+	"golang.org/x/exp/slices"
 )
 
 func New() (cmd *cobra.Command) {
@@ -85,10 +87,10 @@ func run(ctx context.Context) (err error) {
 	client := client.FromContext(ctx).API()
 	workingDir := flag.GetString(ctx, "path")
 
-	deployArgs := deploy.DeployWithConfigArgs{
-		ForceNomad:    flag.GetBool(ctx, "force-nomad"),
-		ForceMachines: flag.GetBool(ctx, "force-machines"),
-		ForceYes:      flag.GetBool(ctx, "now"),
+	// Note: this also disables --force-nomad when launching into an existing nomad app.
+	// we're fast-tracking the removal of nomad support, so this should be fine.
+	if flag.GetBool(ctx, "force-nomad") && !buildinfo.IsDev() {
+		return fmt.Errorf("creating new apps on the nomad platform is no longer supported")
 	}
 
 	metrics.Started(ctx, "launch")
@@ -180,13 +182,17 @@ func run(ctx context.Context) (err error) {
 		return err
 	}
 
-	using_appsv1_only_feature := !deploy.MachineSupportedStrategy(flag.GetString(ctx, "strategy"))
+	using_appsv1_only_feature := false
+	if s := flag.GetString(ctx, "strategy"); s != "" && !slices.Contains(appconfig.MachinesDeployStrategies, s) {
+		using_appsv1_only_feature = true
+	}
+
 	if !shouldUseMachines && !using_appsv1_only_feature {
 		fmt.Fprintf(io.ErrOut, "%s Apps v1 Platform is deprecated. We recommend using the --force-machines flag, or setting\nyour organization's default for new apps to Apps v2 with 'fly orgs apps-v2 default-on <org-name>'\n", aurora.Yellow("WARN"))
 	}
 
 	var envVars map[string]string = nil
-	envFlags := flag.GetStringSlice(ctx, "env")
+	envFlags := flag.GetStringArray(ctx, "env")
 	if len(envFlags) > 0 {
 		envVars, err = cmdutil.ParseKVStringsToMap(envFlags)
 		if err != nil {
@@ -345,7 +351,7 @@ func run(ctx context.Context) (err error) {
 	}
 
 	if deployNow {
-		return deploy.DeployWithConfig(ctx, appConfig, deployArgs)
+		return deploy.DeployWithConfig(ctx, appConfig, flag.GetBool(ctx, "now"))
 	}
 
 	// Alternative deploy documentation if our standard deploy method is not correct
@@ -359,6 +365,7 @@ func run(ctx context.Context) (err error) {
 }
 
 func shouldAppUseMachinesPlatform(ctx context.Context, orgSlug, existingAppPlatform string) (bool, error) {
+
 	forceMachines := flag.GetBool(ctx, "force-machines")
 	forceNomad := flag.GetBool(ctx, "force-nomad")
 
@@ -382,13 +389,8 @@ func shouldAppUseMachinesPlatform(ctx context.Context, orgSlug, existingAppPlatf
 		return false, nil
 	}
 
-	// Query the organization looking for default platform version to use
-	apiClient := client.FromContext(ctx).API()
-	orgDefault, err := apiClient.GetAppsV2DefaultOnForOrg(ctx, orgSlug)
-	if err != nil {
-		return false, err
-	}
-	return orgDefault, nil
+	// Default to Apps v2
+	return true, nil
 }
 
 func appExists(ctx context.Context, cfg *appconfig.Config) (bool, *api.AppBasic, error) {

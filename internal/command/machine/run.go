@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 
 	"github.com/superfly/flyctl/api"
 	"github.com/superfly/flyctl/flaps"
@@ -38,9 +39,11 @@ var sharedFlags = flag.Set{
 	flag.AppConfig(),
 	flag.Detach(),
 	flag.StringSlice{
-		Name:        "port",
-		Shorthand:   "p",
-		Description: "Exposed port mappings (format: (edgePort|startPort-endPort)[:machinePort]/[protocol[:handler]])",
+		Name:      "port",
+		Shorthand: "p",
+		Description: `Publish ports, format: port[:machinePort][/protocol[:handler[:handler...]]])
+	i.e.: --port 80/tcp --port 443:80/tcp:http:tls --port 5432/tcp:pg_tls
+	To remove a port mapping use '-' as handler, i.e.: --port 80/tcp:-`,
 	},
 	flag.String{
 		Name:        "size",
@@ -55,7 +58,7 @@ var sharedFlags = flag.Set{
 		Name:        "memory",
 		Description: "Memory (in megabytes) to attribute to the machine",
 	},
-	flag.StringSlice{
+	flag.StringArray{
 		Name:        "env",
 		Shorthand:   "e",
 		Description: "Set of environment variables in the form of NAME=VALUE pairs. Can be specified multiple times.",
@@ -87,7 +90,7 @@ var sharedFlags = flag.Set{
 		Name:        "dockerfile",
 		Description: "Path to a Dockerfile. Defaults to the Dockerfile in the working directory.",
 	},
-	flag.StringSlice{
+	flag.StringArray{
 		Name:        "build-arg",
 		Description: "Set of build time variables in the form of NAME=VALUE pairs. Can be specified multiple times.",
 		Hidden:      true,
@@ -107,11 +110,11 @@ var sharedFlags = flag.Set{
 		Description: "Do not use the cache when building the image",
 		Hidden:      true,
 	},
-	flag.StringSlice{
+	flag.StringArray{
 		Name:        "kernel-arg",
 		Description: "List of kernel arguments to be provided to the init. Can be specified multiple times.",
 	},
-	flag.StringSlice{
+	flag.StringArray{
 		Name:        "metadata",
 		Shorthand:   "m",
 		Description: "Metadata in the form of NAME=VALUE pairs. Can be specified multiple times.",
@@ -237,7 +240,7 @@ func runMachineRun(ctx context.Context) error {
 			CPUKind:    "shared",
 			CPUs:       1,
 			MemoryMB:   256,
-			KernelArgs: flag.GetStringSlice(ctx, "kernel-arg"),
+			KernelArgs: flag.GetStringArray(ctx, "kernel-arg"),
 		},
 		AutoDestroy: flag.GetBool(ctx, "rm"),
 		DNS: &api.DNSConfig{
@@ -260,6 +263,11 @@ func runMachineRun(ctx context.Context) error {
 		return fmt.Errorf("the app %s uses an earlier version of the platform that does not support machines", app.Name)
 	}
 
+	imageOrPath := flag.FirstArg(ctx)
+	if imageOrPath == "" {
+		return fmt.Errorf("image argument can't be an empty string")
+	}
+
 	machineID := flag.GetString(ctx, "id")
 	if machineID != "" {
 		return fmt.Errorf("to update an existing machine, use 'flyctl machine update'")
@@ -268,7 +276,7 @@ func runMachineRun(ctx context.Context) error {
 	machineConf, err = determineMachineConfig(ctx, &determineMachineConfigInput{
 		initialMachineConf: *machineConf,
 		appName:            app.Name,
-		imageOrPath:        flag.FirstArg(ctx),
+		imageOrPath:        imageOrPath,
 		region:             input.Region,
 		updating:           false,
 	})
@@ -372,7 +380,7 @@ func createApp(ctx context.Context, message, name string, client *api.Client) (*
 func parseKVFlag(ctx context.Context, flagName string, initialMap map[string]string) (parsed map[string]string, err error) {
 	parsed = initialMap
 
-	if value := flag.GetStringSlice(ctx, flagName); len(value) > 0 {
+	if value := flag.GetStringArray(ctx, flagName); len(value) > 0 {
 		parsed, err = cmdutil.ParseKVStringsToMap(value)
 		if err != nil {
 			return nil, fmt.Errorf("invalid key/value pairs specified for flag %s", flagName)
@@ -417,7 +425,7 @@ func determineImage(ctx context.Context, appName string, imageOrPath string) (im
 			opts.DockerfilePath = dockerfilePath
 		}
 
-		extraArgs, err := cmdutil.ParseKVStringsToMap(flag.GetStringSlice(ctx, "build-arg"))
+		extraArgs, err := cmdutil.ParseKVStringsToMap(flag.GetStringArray(ctx, "build-arg"))
 		if err != nil {
 			return nil, errors.Wrap(err, "invalid build-arg")
 		}
@@ -530,47 +538,96 @@ func getUnattachedVolumes(ctx context.Context, regionCode string) (map[string][]
 	return unattachedMap, nil
 }
 
-func determineServices(ctx context.Context) ([]api.MachineService, error) {
-	ports := flag.GetStringSlice(ctx, "port")
-
-	if len(ports) <= 0 {
-		return []api.MachineService{}, nil
+func determineServices(ctx context.Context, services []api.MachineService) ([]api.MachineService, error) {
+	svcKey := func(internalPort int, protocol string) string {
+		return fmt.Sprintf("%d/%s", internalPort, protocol)
 	}
+	servicesRef := lo.Map(services, func(s api.MachineService, _ int) *api.MachineService { return &s })
+	servicesMap := lo.KeyBy(servicesRef, func(s *api.MachineService) string {
+		return svcKey(s.InternalPort, s.Protocol)
+	})
 
-	machineServices := make([]api.MachineService, len(ports))
-
-	for i, p := range flag.GetStringSlice(ctx, "port") {
-		proto := "tcp"
-		handlers := []string{}
-
-		splittedPortsProto := strings.Split(p, "/")
-		if len(splittedPortsProto) == 2 {
-			splittedProtoHandlers := strings.Split(splittedPortsProto[1], ":")
-			proto = splittedProtoHandlers[0]
-			handlers = append(handlers, splittedProtoHandlers[1:]...)
-		} else if len(splittedPortsProto) > 2 {
-			return nil, errors.New("port must be at most two elements (ports/protocol:handler)")
-		}
-
-		edgePort, edgeStartPort, edgeEndPort, internalPort, err := parsePorts(splittedPortsProto[0])
+	for _, p := range flag.GetStringSlice(ctx, "port") {
+		internalPort, proto, edgePort, edgeStartPort, edgeEndPort, handlers, err := parsePortFlag(p)
 		if err != nil {
 			return nil, err
 		}
 
-		machineServices[i] = api.MachineService{
-			Protocol:     proto,
-			InternalPort: internalPort,
-			Ports: []api.MachinePort{
-				{
-					Port:      edgePort,
-					StartPort: edgeStartPort,
-					EndPort:   edgeEndPort,
-					Handlers:  handlers,
-				},
-			},
+		// Look for existing services or append a new one
+		svc, ok := servicesMap[svcKey(internalPort, proto)]
+		if !ok {
+			svc = &api.MachineService{
+				InternalPort: internalPort,
+				Protocol:     proto,
+			}
+			servicesRef = append(servicesRef, svc)
+			servicesMap[svcKey(internalPort, proto)] = svc
+		}
+
+		// A dash handler removes the service: --port 5432/tcp:-
+		if slices.Equal(handlers, []string{"-"}) {
+			svc.Ports = nil
+			continue
+		}
+
+		// Look for existing ports and update them
+		found := false
+		for idx := range svc.Ports {
+			svcPort := &svc.Ports[idx]
+			if svcPort.Port != nil && edgePort != nil && *(svcPort.Port) == *edgePort {
+				found = true
+				svcPort.Handlers = handlers
+			}
+			if svcPort.StartPort != nil && edgeStartPort != nil && *(svcPort.StartPort) == *edgeStartPort {
+				found = true
+				svcPort.Handlers = handlers
+				svcPort.EndPort = edgeEndPort
+			}
+		}
+		// Or append new port definition
+		if !found {
+			svc.Ports = append(svc.Ports, api.MachinePort{
+				Port:      edgePort,
+				StartPort: edgeStartPort,
+				EndPort:   edgeEndPort,
+				Handlers:  handlers,
+			})
 		}
 	}
-	return machineServices, nil
+
+	// Remove any service without exposed ports
+	services = lo.FilterMap(servicesRef, func(s *api.MachineService, _ int) (api.MachineService, bool) {
+		if s != nil && len(s.Ports) > 0 {
+			return *s, true
+		}
+		return api.MachineService{}, false
+	})
+
+	return services, nil
+}
+
+func parsePortFlag(str string) (internalPort int, protocol string, port, startPort, endPort *int, handlers []string, err error) {
+	protocol = "tcp"
+	splittedPortsProto := strings.Split(str, "/")
+	if len(splittedPortsProto) == 2 {
+		splittedProtoHandlers := strings.Split(splittedPortsProto[1], ":")
+		protocol = splittedProtoHandlers[0]
+		handlers = append(handlers, splittedProtoHandlers[1:]...)
+	} else if len(splittedPortsProto) > 2 {
+		err = errors.New("port must be at most two elements (ports/protocol:handler)")
+		return
+	}
+
+	port, startPort, endPort, internalPort, err = parsePorts(splittedPortsProto[0])
+	if internalPort == 0 {
+		switch {
+		case port != nil:
+			internalPort = *port
+		case startPort != nil:
+			internalPort = *startPort
+		}
+	}
+	return
 }
 
 func parsePorts(input string) (port, start_port, end_port *int, internal_port int, err error) {
@@ -670,8 +727,8 @@ func determineMachineConfig(ctx context.Context, input *determineMachineConfigIn
 		return nil, fmt.Errorf("memory cannot be zero")
 	}
 
-	if len(flag.GetStringSlice(ctx, "kernel-arg")) != 0 {
-		machineConf.Guest.KernelArgs = flag.GetStringSlice(ctx, "kernel-arg")
+	if len(flag.GetStringArray(ctx, "kernel-arg")) != 0 {
+		machineConf.Guest.KernelArgs = flag.GetStringArray(ctx, "kernel-arg")
 	}
 
 	parsedEnv, err := parseKVFlag(ctx, "env", machineConf.Env)
@@ -705,10 +762,11 @@ func determineMachineConfig(ctx context.Context, input *determineMachineConfigIn
 		machineConf.Init.Cmd = flag.Args(ctx)[1:]
 	}
 
-	if machineConf.DNS == nil {
-		machineConf.DNS = &api.DNSConfig{
-			SkipRegistration: flag.GetBool(ctx, "skip-dns-registration"),
+	if flag.IsSpecified(ctx, "skip-dns-registration") {
+		if machineConf.DNS == nil {
+			machineConf.DNS = &api.DNSConfig{}
 		}
+		machineConf.DNS.SkipRegistration = flag.GetBool(ctx, "skip-dns-registration")
 	}
 
 	// Metadata
@@ -725,13 +783,11 @@ func determineMachineConfig(ctx context.Context, input *determineMachineConfigIn
 		machineConf.Metadata[k] = v
 	}
 
-	services, err := determineServices(ctx)
+	services, err := determineServices(ctx, machineConf.Services)
 	if err != nil {
 		return machineConf, err
 	}
-	if len(services) > 0 {
-		machineConf.Services = services
-	}
+	machineConf.Services = services
 
 	if entrypoint := flag.GetString(ctx, "entrypoint"); entrypoint != "" {
 		splitted, err := shlex.Split(entrypoint)
@@ -766,11 +822,13 @@ func determineMachineConfig(ctx context.Context, input *determineMachineConfigIn
 		return machineConf, err
 	}
 
-	img, err := determineImage(ctx, input.appName, input.imageOrPath)
-	if err != nil {
-		return machineConf, err
+	if input.imageOrPath != "" {
+		img, err := determineImage(ctx, input.appName, input.imageOrPath)
+		if err != nil {
+			return machineConf, err
+		}
+		machineConf.Image = img.Tag
 	}
-	machineConf.Image = img.Tag
 
 	// Service updates
 	for idx := range machineConf.Services {

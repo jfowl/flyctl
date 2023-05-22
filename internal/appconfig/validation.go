@@ -5,15 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/shlex"
 	"github.com/logrusorgru/aurora"
+	"github.com/superfly/flyctl/api"
 	"github.com/superfly/flyctl/client"
 	"github.com/superfly/flyctl/internal/sentry"
 	"golang.org/x/exp/slices"
 )
 
-var ValidationError = errors.New("invalid app configuration")
+var (
+	ValidationError          = errors.New("invalid app configuration")
+	MachinesDeployStrategies = []string{"canary", "rolling", "immediate"}
+)
 
 func (cfg *Config) Validate(ctx context.Context) (err error, extra_info string) {
 	appName := NameFromContext(ctx)
@@ -131,12 +136,30 @@ func (cfg *Config) validateBuildStrategies() (extraInfo string, err error) {
 }
 
 func (cfg *Config) validateDeploySection() (extraInfo string, err error) {
-	if cfg.Deploy != nil {
-		if _, vErr := shlex.Split(cfg.Deploy.ReleaseCommand); vErr != nil {
-			extraInfo += fmt.Sprintf("Can't shell split release command: '%s'\n", cfg.Deploy.ReleaseCommand)
+	if cfg.Deploy == nil {
+		return
+	}
+
+	if _, vErr := shlex.Split(cfg.Deploy.ReleaseCommand); vErr != nil {
+		extraInfo += fmt.Sprintf("Can't shell split release command: '%s'\n", cfg.Deploy.ReleaseCommand)
+		err = ValidationError
+	}
+
+	if s := cfg.Deploy.Strategy; s != "" {
+		if !slices.Contains(MachinesDeployStrategies, s) {
+			extraInfo += fmt.Sprintf(
+				"unsupported deployment strategy '%s'; Apps v2 supports the following strategies: %s", s,
+				strings.Join(MachinesDeployStrategies, ", "),
+			)
+			err = ValidationError
+		}
+
+		if s == "canary" && len(cfg.Mounts) > 0 {
+			extraInfo += "error canary deployment strategy is not supported when using mounted volumes"
 			err = ValidationError
 		}
 	}
+
 	return
 }
 
@@ -188,8 +211,46 @@ func (cfg *Config) validateServicesSection() (extraInfo string, err error) {
 				}
 			}
 		}
+
+		for _, check := range service.TCPChecks {
+			extraInfo += validateServiceCheckDurations(check.Interval, check.Timeout, check.GracePeriod, "TCP")
+		}
+
+		for _, check := range service.HTTPChecks {
+			extraInfo += validateServiceCheckDurations(check.Interval, check.Timeout, check.GracePeriod, "HTTP")
+		}
 	}
 	return extraInfo, err
+}
+
+func validateServiceCheckDurations(interval, timeout, gracePeriod *api.Duration, proto string) (extraInfo string) {
+	extraInfo += validateSingleServiceCheckDuration(interval, false, proto, "an interval")
+	extraInfo += validateSingleServiceCheckDuration(timeout, false, proto, "a timeout")
+	extraInfo += validateSingleServiceCheckDuration(gracePeriod, true, proto, "a grace period")
+	return
+}
+
+func validateSingleServiceCheckDuration(d *api.Duration, zeroOK bool, proto, description string) (extraInfo string) {
+	switch {
+	case d == nil:
+		// Do nothing.
+	case zeroOK && d.Duration != 0 && d.Duration < time.Second:
+		extraInfo += fmt.Sprintf(
+			"%s Service %s check has %s that is non-zero and less than 1 second (%v); this will be raised to 1 second\n",
+			aurora.Yellow("WARN"), proto, description, d.Duration,
+		)
+	case !zeroOK && d.Duration < time.Second:
+		extraInfo += fmt.Sprintf(
+			"%s Service %s check has %s less than 1 second (%v); this will be raised to 1 second\n",
+			aurora.Yellow("WARN"), proto, description, d.Duration,
+		)
+	case d.Duration > time.Minute:
+		extraInfo += fmt.Sprintf(
+			"%s Service %s check has %s greater than 1 minute (%v); this will be lowered to 1 minute\n",
+			aurora.Yellow("WARN"), proto, description, d.Duration,
+		)
+	}
+	return
 }
 
 func (cfg *Config) validateProcessesSection() (extraInfo string, err error) {

@@ -69,6 +69,9 @@ func runMigrateToV2(ctx context.Context) (err error) {
 		apiClient = client.FromContext(ctx).API()
 	)
 
+	// pre-fetch platform regions for later use
+	prompt.PlatformRegions(ctx)
+
 	appCompact, err := apiClient.GetAppCompact(ctx, appName)
 	if err != nil {
 		return err
@@ -198,7 +201,15 @@ func NewV2PlatformMigrator(ctx context.Context, appName string) (V2PlatformMigra
 	if err != nil {
 		return nil, fmt.Errorf("failed to get image info: %w", err)
 	}
-	img := fmt.Sprintf("%s/%s:%s", imageInfo.ImageDetails.Registry, imageInfo.ImageDetails.Repository, imageInfo.ImageDetails.Tag)
+	var img string
+	switch {
+	case imageInfo.ImageDetails.Tag != "":
+		img = fmt.Sprintf("%s/%s:%s", imageInfo.ImageDetails.Registry, imageInfo.ImageDetails.Repository, imageInfo.ImageDetails.Tag)
+	case imageInfo.ImageDetails.Digest != "":
+		img = fmt.Sprintf("%s/%s@%s", imageInfo.ImageDetails.Registry, imageInfo.ImageDetails.Repository, imageInfo.ImageDetails.Digest)
+	default:
+		return nil, fmt.Errorf("failed to get image info: no tag or digest found")
+	}
 	allocs, err := apiClient.GetAllocations(ctx, appName, false)
 	if err != nil {
 		return nil, err
@@ -887,6 +898,11 @@ func determineVmSpecs(vmSize api.VMSize) (*api.MachineGuest, error) {
 		return nil, fmt.Errorf("nomad VM definition incompatible with machines API: %w", err)
 	}
 	guest.MemoryMB = vmSize.MemoryMB
+
+	// minimum memory for a machine is 256MB, micro-1x on V1 allowed 128MB
+	if guest.MemoryMB < 256 {
+		guest.MemoryMB = 256
+	}
 
 	return guest, nil
 }
