@@ -22,6 +22,16 @@ query GetAddOn($name: String) {
 	}
 }
 
+query GetAddOns($addonType: AddOnType) {
+	addOns(type: $addonType) {
+		nodes {
+			id
+			name
+			token
+		}
+	}
+}
+
 mutation CreateAddOn($input: CreateAddOnInput!) {
 	createAddOn(input: $input) {
 		addOn {

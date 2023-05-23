@@ -2,9 +2,8 @@ package logs
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"reflect"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/superfly/flyctl/api"
@@ -17,7 +16,6 @@ import (
 	"github.com/superfly/flyctl/internal/flag"
 	"github.com/superfly/flyctl/internal/prompt"
 	"github.com/superfly/flyctl/iostreams"
-	"github.com/vektah/gqlparser/gqlerror"
 )
 
 type Provider struct {
@@ -228,7 +226,7 @@ func runSetup(ctx context.Context) (err error) {
 	SetNatsTokenSecret(ctx, shipperApp)
 
 	// Set log provider secrets
-
+	SetLogProviderSecret(ctx, shipperApp, providers[providerIndex])
 	return
 }
 
@@ -238,41 +236,30 @@ func ProvisionAutoShipper(ctx context.Context, targetApp gql.AppData, provider s
 
 	getAddOnResponse, err := gql.GetAddOn(ctx, client, addOnName)
 
-	errType := reflect.TypeOf(err)
-	fmt.Println("Error type:", errType)
+	if err == nil {
 
-	for err != nil {
-		if errList, ok := err.(gqlerror.List); ok {
-			for _, gqlErr := range errList {
-				fmt.Println(gqlErr)
-			}
-			input := gql.CreateAddOnInput{
-				OrganizationId: targetApp.Organization.Id,
-				Name:           addOnName,
-				AppId:          targetApp.Id,
-				Type:           gql.AddOnTypes[provider],
-			}
+		fmt.Printf("A logger is already provisioned for app %s\n", targetApp.Name)
+		token = getAddOnResponse.AddOn.Token
 
-			createAddOnResponse, err := gql.CreateAddOn(ctx, client, input)
+	} else if gql.IsErrorNotFound(err) {
 
-			if err != nil {
-				return "", err
-			}
-
-			token = createAddOnResponse.CreateAddOn.AddOn.Token
-
-			break
-
-		} else {
-			// return "", err
+		input := gql.CreateAddOnInput{
+			OrganizationId: targetApp.Organization.Id,
+			Name:           addOnName,
+			AppId:          targetApp.Id,
+			Type:           gql.AddOnTypes[provider],
 		}
 
-		err = errors.Unwrap(err)
-	}
+		createAddOnResponse, err := gql.CreateAddOn(ctx, client, input)
 
-	if err == nil {
-		fmt.Println("already provisioned", getAddOnResponse.AddOn.Organization.Slug)
-		token = getAddOnResponse.AddOn.Token
+		if err != nil {
+			return "", err
+		}
+
+		token = createAddOnResponse.CreateAddOn.AddOn.Token
+
+	} else {
+		return "", err
 	}
 
 	return token, nil
@@ -316,6 +303,52 @@ func EnsureShipperApp(ctx context.Context, targetOrg gql.AppDataOrganization) (s
 			return nil, err
 		}
 	}
+
+	return
+}
+
+func SetLogProviderSecret(ctx context.Context, shipperApp *gql.AppData, provider Provider) (err error) {
+	client := client.FromContext(ctx).API().GenqClient // io := iostreams.FromContext(ctx)
+
+	result, err := gql.GetAddOns(ctx, client, gql.AddOnTypeLogtail)
+
+	if err != nil {
+		return
+	}
+
+	var creds []string
+
+	for ao := range result.AddOns.Nodes {
+		addon := result.AddOns.Nodes[ao]
+		appCreds := []string{addon.Name, "logtail", addon.Token}
+		creds = append(creds, strings.Join(appCreds, ":"))
+	}
+
+	_, err = gql.SetSecrets(ctx, client, gql.SetSecretsInput{
+		AppId: shipperApp.Id,
+		Secrets: []gql.SecretInput{
+			{
+				Key:   "LOGGERS",
+				Value: strings.Join(creds, ","),
+			},
+		},
+	})
+
+	if err != nil {
+		return err
+	}
+
+	md, err := deploy.NewMachineDeployment(ctx, deploy.MachineDeploymentArgs{
+		AppCompact:       gql.ToAppCompact(*shipperApp),
+		RestartOnly:      true,
+		SkipHealthChecks: true,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	err = md.DeployMachinesApp(ctx)
 
 	return
 }
@@ -372,7 +405,6 @@ func EnsureShipperMachine(ctx context.Context, shipperApp *gql.AppData) (err err
 	}
 
 	fmt.Fprintf(io.Out, "Launched log shipper app %s\n in the %s region", shipperApp.Name, launchInput.Region)
-
 	return
 }
 
@@ -387,7 +419,6 @@ func SetNatsTokenSecret(ctx context.Context, shipperApp *gql.AppData) (err error
 
 	gql.SetSecrets(ctx, client, gql.SetSecretsInput{
 		AppId: shipperApp.Id,
-
 		Secrets: []gql.SecretInput{
 			{
 				Key:   "NATS_TOKEN",

@@ -44,28 +44,27 @@ func runUnship(ctx context.Context) (err error) {
 	if err != nil {
 		return err
 	}
-
-	getAddOnResponse, err := gql.GetAddOn(ctx, client, LoggerAddOnName(appName, "logtail"))
+	//	getAddOnResponse, err := gql.GetAddOn(ctx, client, LoggerAddOnName(appName, "logtail"))
 
 	for err != nil {
 		if errList, ok := err.(gqlerror.List); ok {
 			for _, gqlErr := range errList {
 				fmt.Println(gqlErr)
 			}
-			input := gql.CreateAddOnInput{
-				OrganizationId: targetApp.Organization.Id,
-				Name:           addOnName,
-				AppId:          targetApp.Id,
-				Type:           gql.AddOnTypes[provider],
-			}
+			// input := gql.CreateAddOnInput{
+			// 	OrganizationId: targetApp.Organization.Id,
+			// 	Name:           addOnName,
+			// 	AppId:          targetApp.Id,
+			// 	Type:           gql.AddOnTypes[provider],
+			// }
 
-			createAddOnResponse, err := gql.CreateAddOn(ctx, client, input)
+			//			createAddOnResponse, err := gql.CreateAddOn(ctx, client, input)
 
 			if err != nil {
-				return "", err
+				//			return "", err
 			}
 
-			token = createAddOnResponse.CreateAddOn.AddOn.Token
+			//	token = createAddOnResponse.CreateAddOn.AddOn.Token
 
 			break
 

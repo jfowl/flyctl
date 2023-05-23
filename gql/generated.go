@@ -1075,6 +1075,47 @@ type GetAddOnResponse struct {
 // GetAddOn returns GetAddOnResponse.AddOn, and is useful for accessing the field via an interface.
 func (v *GetAddOnResponse) GetAddOn() GetAddOnAddOn { return v.AddOn }
 
+// GetAddOnsAddOnsAddOnConnection includes the requested fields of the GraphQL type AddOnConnection.
+// The GraphQL type's documentation follows.
+//
+// The connection type for AddOn.
+type GetAddOnsAddOnsAddOnConnection struct {
+	// A list of nodes.
+	Nodes []GetAddOnsAddOnsAddOnConnectionNodesAddOn `json:"nodes"`
+}
+
+// GetNodes returns GetAddOnsAddOnsAddOnConnection.Nodes, and is useful for accessing the field via an interface.
+func (v *GetAddOnsAddOnsAddOnConnection) GetNodes() []GetAddOnsAddOnsAddOnConnectionNodesAddOn {
+	return v.Nodes
+}
+
+// GetAddOnsAddOnsAddOnConnectionNodesAddOn includes the requested fields of the GraphQL type AddOn.
+type GetAddOnsAddOnsAddOnConnectionNodesAddOn struct {
+	Id string `json:"id"`
+	// The service name according to the provider
+	Name string `json:"name"`
+	// Token for the add-on
+	Token string `json:"token"`
+}
+
+// GetId returns GetAddOnsAddOnsAddOnConnectionNodesAddOn.Id, and is useful for accessing the field via an interface.
+func (v *GetAddOnsAddOnsAddOnConnectionNodesAddOn) GetId() string { return v.Id }
+
+// GetName returns GetAddOnsAddOnsAddOnConnectionNodesAddOn.Name, and is useful for accessing the field via an interface.
+func (v *GetAddOnsAddOnsAddOnConnectionNodesAddOn) GetName() string { return v.Name }
+
+// GetToken returns GetAddOnsAddOnsAddOnConnectionNodesAddOn.Token, and is useful for accessing the field via an interface.
+func (v *GetAddOnsAddOnsAddOnConnectionNodesAddOn) GetToken() string { return v.Token }
+
+// GetAddOnsResponse is returned by GetAddOns on success.
+type GetAddOnsResponse struct {
+	// List add-ons associated with an organization
+	AddOns GetAddOnsAddOnsAddOnConnection `json:"addOns"`
+}
+
+// GetAddOns returns GetAddOnsResponse.AddOns, and is useful for accessing the field via an interface.
+func (v *GetAddOnsResponse) GetAddOns() GetAddOnsAddOnsAddOnConnection { return v.AddOns }
+
 // GetAppApp includes the requested fields of the GraphQL type App.
 type GetAppApp struct {
 	AppData `json:"-"`
@@ -2355,6 +2396,14 @@ type __GetAddOnProviderInput struct {
 // GetName returns __GetAddOnProviderInput.Name, and is useful for accessing the field via an interface.
 func (v *__GetAddOnProviderInput) GetName() string { return v.Name }
 
+// __GetAddOnsInput is used internally by genqlient
+type __GetAddOnsInput struct {
+	AddonType AddOnType `json:"addonType"`
+}
+
+// GetAddonType returns __GetAddOnsInput.AddonType, and is useful for accessing the field via an interface.
+func (v *__GetAddOnsInput) GetAddonType() AddOnType { return v.AddonType }
+
 // __GetAppInput is used internally by genqlient
 type __GetAppInput struct {
 	Name string `json:"name"`
@@ -2906,6 +2955,45 @@ func GetAddOnProvider(
 	var err error
 
 	var data GetAddOnProviderResponse
+	resp := &graphql.Response{Data: &data}
+
+	err = client.MakeRequest(
+		ctx,
+		req,
+		resp,
+	)
+
+	return &data, err
+}
+
+// The query or mutation executed by GetAddOns.
+const GetAddOns_Operation = `
+query GetAddOns ($addonType: AddOnType) {
+	addOns(type: $addonType) {
+		nodes {
+			id
+			name
+			token
+		}
+	}
+}
+`
+
+func GetAddOns(
+	ctx context.Context,
+	client graphql.Client,
+	addonType AddOnType,
+) (*GetAddOnsResponse, error) {
+	req := &graphql.Request{
+		OpName: "GetAddOns",
+		Query:  GetAddOns_Operation,
+		Variables: &__GetAddOnsInput{
+			AddonType: addonType,
+		},
+	}
+	var err error
+
+	var data GetAddOnsResponse
 	resp := &graphql.Response{Data: &data}
 
 	err = client.MakeRequest(
