@@ -128,6 +128,12 @@ func newTroubleshooter(ctx context.Context, appName string) (*troubleshooter, er
 	t := &troubleshooter{
 		app: app,
 	}
+
+	err = t.unlockApp(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := t.refreshMachines(ctx); err != nil {
 		return nil, err
 	}
@@ -235,11 +241,6 @@ func (t *troubleshooter) run(ctx context.Context) error {
 	// (meaning: we've got issues)
 
 	printYellowBrickRoad(ctx)
-
-	err := t.unlockApp(ctx)
-	if err != nil {
-		return err
-	}
 
 	if t.app.PlatformVersion != appconfig.MachinesPlatform {
 		err := t.unsuspend(ctx)
